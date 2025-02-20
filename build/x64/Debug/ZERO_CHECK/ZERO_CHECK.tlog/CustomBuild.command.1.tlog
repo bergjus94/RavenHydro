@@ -1,0 +1,10 @@
+^C:\USERS\JUSTINE BERG\ONEDRIVE - UNIVERSITAET BERN\RAVENHYDRO\BUILD\CMAKEFILES\BFAE641D14B44613BD9FE8C1FD1E0B50\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" "-SC:/Users/Justine Berg/OneDrive - Universitaet Bern/RavenHydro" "-BC:/Users/Justine Berg/OneDrive - Universitaet Bern/RavenHydro/build" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "C:/Users/Justine Berg/OneDrive - Universitaet Bern/RavenHydro/build/Raven.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
