@@ -563,6 +563,7 @@ bool ParseMainInputFile (CModel     *&pModel,
     else if  (!strcmp(s[0],":SoilBalance"               )){code=237;}
     else if  (!strcmp(s[0],":LateralEquilibrate"        )){code=238;}
     else if  (!strcmp(s[0],":LakeFreeze"                )){code=239;}
+    else if  (!strcmp(s[0],":SnowRedistribute"          )){code=240;}
     //...
     else if  (!strcmp(s[0],":-->RedirectFlow"           )){code=294;}
     else if  (!strcmp(s[0],":ProcessGroup"              )){code=295;}
@@ -3020,6 +3021,24 @@ bool ParseMainInputFile (CModel     *&pModel,
       pModel->AddStateVariables(tmpS,tmpLev,tmpN);
 
       pMover = new CmvFrozenLake(lf_type, pModel->GetTransportModel(), pModel);
+      AddProcess(pModel, pMover, pProcGroup);
+      break;
+    }
+    case(240):  //----------------------------------------------
+    {
+      /*Snow Redistribution
+        :SnowRedistribute RAVEN_DEFAULT [SV] [Max_snow_height] */
+      if (Options.noisy) { cout << "Snow Redistribution Process" << endl; }
+      if (Len < 4) { ImproperFormatWarning(":SnowRedistribute", p, Options.noisy); break; }
+
+      tmpS[0] = pModel->GetStateVarInfo()->StringToSVType(s[2], tmpLev[0], true);
+      pModel->AddStateVariables(tmpS, tmpLev, 2);
+
+      double max_snow_height = s_to_d(s[3]);
+
+      pMover = new CmvLatRedistribute(pModel->GetStateVarIndex(tmpS[0], tmpLev[0]), // SV index
+                                      max_snow_height,
+                                      pModel);
       AddProcess(pModel, pMover, pProcGroup);
       break;
     }

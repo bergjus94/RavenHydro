@@ -12,6 +12,7 @@
 #include "LateralExchangeABC.h"
 #include "SubBasin.h"
 #include "HydroUnits.h"
+#include "LatConnect.h"
 #include "TimeSeries.h"
 #include "Gauge.h"
 #include "CustomOutput.h"
@@ -44,6 +45,7 @@ class CLandUseClass;  // defined in 'SoilAndLandClasses.h'
 class CSubbasinGroup; // defined in 'SubBasin.h'
 class CChannelXSect;  // defined in 'ChannelXSect.h'
 class CSubBasin;      // defined in 'SubBasin.h'
+class CLatConnect;    // defined in 'LatConnect.h'
 struct class_change;
 class CTransientParam;
 class CDemandOptimizer;
@@ -67,6 +69,9 @@ private:/*------------------------------------------------------*/
   CHRUGroup       **_pHRUGroups;  ///< Array of pointers to HRU groups
   int                _nSBGroups;  ///< number of Subbasin groups in model
   CSubbasinGroup   **_pSBGroups;  ///< Array of pointers to Subbasin groups
+
+  int              _nLatConnect;  ///< number of lateral connections
+  CLatConnect    **_pLatConnect;  ///< Array of pointers to lateral connections
 
   int               _nSubBasins;  ///< number of subbasins
   CSubBasin       **_pSubBasins;  ///< array of pointers to subbasins [size:_nSubBasins]; each subbasin includes multiple HRUs/HydroUnits
@@ -395,6 +400,7 @@ public:/*-------------------------------------------------------*/
   int               GetNumHRUGroups                   () const;
   int               GetNumSubBasins                   () const;
   int               GetNumSubBasinGroups              () const;
+  int               GetNumLatConnections              () const;
   CHydroUnit       *GetHydroUnit                      (const int k ) const;
   CHydroUnit       *GetHRUByID                        (const long long int HRUID) const;
   CHRUGroup        *GetHRUGroup                       (const int kk) const;
@@ -403,6 +409,7 @@ public:/*-------------------------------------------------------*/
   CSubBasin        *GetSubBasinByID                   (const long ID) const;
   CSubbasinGroup   *GetSubBasinGroup                  (const int pp) const;
   CSubbasinGroup   *GetSubBasinGroup                  (const string name) const;
+  CLatConnect      *GetLatConnection                  (const int n ) const;
   CHydroProcessABC *GetProcess                        (const int j ) const;
   CGauge           *GetGauge                          (const int g) const;
   CForcingGrid     *GetForcingGrid                    (const forcing_type &ftype) const;
@@ -452,6 +459,7 @@ public:/*-------------------------------------------------------*/
   void    AddHRUGroup               (        CHRUGroup         *pHRUGrp         );
   void    AddSubBasin               (        CSubBasin         *pWS             );
   void    AddSubBasinGroup          (        CSubbasinGroup    *pSBGrp          );
+  void    AddLateralConnection      (        CLatConnect       *Lat             );
   void    AddGauge                  (        CGauge            *pGage           );
   void    AddForcingGrid            (        CForcingGrid      *pGrid           , forcing_type typ);
   void    AddStateVariables         (const sv_type             *aSV,
