@@ -1117,7 +1117,6 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
             );
             // Add lateral connections to pModel
             pModel->AddLateralConnection(pLat);
-            cout << "   Added Lateral Connection: " << s[0] << " to " << s[1] << " with value " << s[2] << endl;
           }
           else          {
             ExitGracefully("ParseLateralConnections: Bad HRU index in :LateralConnections command",BAD_DATA);
@@ -1126,7 +1125,31 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
         }
 
       }
+
+      // After all connections are added, check if weights sum to 1.0
+      int nConnections = pModel->GetNumLatConnections();
+      if (nConnections > 0) {
+        // Create an array of pointers to lateral connections
+        const CLatConnect** connections = new const CLatConnect*[nConnections];
+  
+        // Fill the array with lateral connections from the model
+        for (int i = 0; i < nConnections; i++) {
+          connections[i] = pModel->GetLatConnection(i);
+        }
+  
+        // Check if weights sum to 1.0
+        if (!CLatConnect::CheckConnectionWeights(connections, nConnections, pModel)) {
+          WriteWarning("Some HRUs have lateral connection weights that do not sum to 1.0. This may lead to mass balance errors.", Options.noisy);
+        }
+        else {
+          cout << "   Lateral connection weights verified - all HRUs have properly normalized outflow weights." << endl;
+        }
+  
+      // Clean up the temporary array
+      delete[] connections;
     }
+    break;
+  }
 
     default://------------------------------------------------
     {

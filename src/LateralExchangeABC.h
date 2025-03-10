@@ -156,17 +156,24 @@ public:/*-------------------------------------------------------*/
 ///////////////////////////////////////////////////////////////////
 /// \brief Data abstraction for the redistribution of snow based on slope and snow SWE
 
+typedef enum {
+  CONTINUOUS_REDIST,
+  THRESHOLD_REDIST
+} redist_method;
+
 class CmvLatRedistribute: public CLateralExchangeProcessABC
 {
 private:/*------------------------------------------------------*/
   int _iRedistributeFrom; //< global state variable index of source state var
   int _iRedistributeTo;   //< global state variable index of target state var
   double _max_snow_height; //< maximum snow height for redistribution
+  redist_method _method;      // method used for redistribution
 
 public:/*-------------------------------------------------------*/
   //Constructors/destructors:
   CmvLatRedistribute(int sv_ind,
                      double max_snow_height,
+                     redist_method method,
                      CModel *pModel);
   ~CmvLatRedistribute();
 

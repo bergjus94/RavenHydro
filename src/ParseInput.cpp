@@ -3027,10 +3027,18 @@ bool ParseMainInputFile (CModel     *&pModel,
     case(240):  //----------------------------------------------
     {
       /*Snow Redistribution
-        :SnowRedistribute RAVEN_DEFAULT [SV] [Max_snow_height] */
+        :SnowRedistribute [string method] [SV] [Max_snow_height] */
       if (Options.noisy) { cout << "Snow Redistribution Process" << endl; }
       if (Len < 4) { ImproperFormatWarning(":SnowRedistribute", p, Options.noisy); break; }
 
+      redist_method r_type = CONTINUOUS_REDIST; // default method
+
+      if      (!strcmp(s[1], "CONTINUOUS")) { r_type = CONTINUOUS_REDIST; }
+      else if (!strcmp(s[1], "THRESHOLD"))  { r_type = THRESHOLD_REDIST; }
+      else {
+        ExitGracefully("ParseMainInputFile: Unrecognized snow redistribution method", BAD_DATA_WARN); break;
+      }
+      
       tmpS[0] = pModel->GetStateVarInfo()->StringToSVType(s[2], tmpLev[0], true);
       pModel->AddStateVariables(tmpS, tmpLev, 2);
 
@@ -3038,6 +3046,7 @@ bool ParseMainInputFile (CModel     *&pModel,
 
       pMover = new CmvLatRedistribute(pModel->GetStateVarIndex(tmpS[0], tmpLev[0]), // SV index
                                       max_snow_height,
+                                      r_type,
                                       pModel);
       AddProcess(pModel, pMover, pProcGroup);
       break;

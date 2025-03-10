@@ -1295,7 +1295,6 @@ void CModel::AddLateralConnection(CLatConnect *pLat)
   if (!DynArrayAppend((void**&)(_pLatConnect),(void*)(pLat),_nLatConnect)){
     ExitGracefully("CModel::AddSubBasin: adding NULL HRU",BAD_DATA);}
 
-    std::cout << "Number of lateral connections: " << _nLatConnect << std::endl;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1514,8 +1513,7 @@ void CModel::AddProcess(CHydroProcessABC *pHydroProc)
   }
   if (!DynArrayAppend((void**&)(_pProcesses),(void*)(pHydroProc),_nProcesses)){
     ExitGracefully("CModel::AddProcess: adding NULL hydrological process",BAD_DATA);}
-  
-  std::cout << "Added process with " << pHydroProc->GetNumConnections() << " connections." << std::endl;
+
 }
 
 //////////////////////////////////////////////////////////////////

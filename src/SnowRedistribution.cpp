@@ -16,9 +16,11 @@ LatRedistribute (redistribute snow based on slope and snow SWE)
 
 CmvLatRedistribute::CmvLatRedistribute(int sv_ind,
                                        double max_snow_height,
+                                       redist_method method,
                                        CModel *pModel)
     : CLateralExchangeProcessABC(LAT_REDISTRIBUTE, pModel),
-      _max_snow_height(max_snow_height)
+      _max_snow_height(max_snow_height),
+      _method(method)
 {
     _iRedistributeFrom = sv_ind;
     _iRedistributeTo = sv_ind;
@@ -87,18 +89,16 @@ void CmvLatRedistribute::GetParticipatingParamList(string *aP, class_type *aPC, 
 /// \param &tt [in] Specified point at time at which this accessing takes place
 /// \param *exchange_rates [out] Rate of loss from "from" compartment [mm-km2/day]
 //
-void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars, // array of all SVs for all HRUs, [k][i]
+void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
                                             const CHydroUnit *const *pHRUs,
                                             const optStruct &Options,
                                             const time_struct &tt,
                                             double *exchange_rates) const
 {
-    // Add a print statement to verify if this function is being called
-    //std::cout << "CmvLatRedistribute::GetLateralExchange called" << std::endl;
-
     const double PI = 3.141592653589793;
-    //const double MAX_SNOW_HEIGHT = 15000.0; // in mm
     const double TAN_80_DEGREES = tan(80.0 * PI / 180.0);
+    const double RAD_TO_DEG = 180.0 / PI;
+    const double _k_param = 0.05; // Bernhardt & Schulz (2010) SnowSlide threshold method parameter
 
     for (int q = 0; q < _pModel->GetNumLatConnections(); q++)
     {
@@ -112,24 +112,46 @@ void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars, // 
         double areaTo = pHRUs[toHRU-1]->GetArea();
 
         // Get slope and SWE from source HRU
-        double slope = pHRUs[fromHRU-1]->GetSlope();
+        double slope_rad = pHRUs[fromHRU-1]->GetSlope();
         double snowSWE = state_vars[fromHRU-1][_iRedistributeFrom];
 
-        double snowTransport = std::min(0.5, slope / TAN_80_DEGREES) * std::min(1.0, snowSWE / _max_snow_height);
-        double snowMoved = snowTransport * snowSWE;
+        double snowMoved = 0.0;
+
+        if (_method == CONTINUOUS_REDIST)
+        {
+            // Original continuous method
+            double snowTransport = std::min(0.5, slope_rad / TAN_80_DEGREES) * std::min(1.0, snowSWE / _max_snow_height);
+            snowMoved = snowTransport * snowSWE;
+        }
+        else if (_method == THRESHOLD_REDIST)
+        {
+            // Bernhardt & Schulz (2010) SnowSlide threshold method
+            const double SNOWSLIDE_LIMIT_ANGLE = 60.0; // Maximum angle in degrees
+            double slope_deg = slope_rad * RAD_TO_DEG;
+
+            // Calculate threshold snow height based on slope angle
+            double threshold_snow_height = _max_snow_height * exp(-_k_param * slope_deg);
+
+            // Ensure no accumulation above SNOWSLIDE_LIMIT_ANGLE
+            if (slope_deg > SNOWSLIDE_LIMIT_ANGLE) {
+            threshold_snow_height = 0.0;
+            }
+
+            // Calculate excess snow to be redistributed
+            if (snowSWE > threshold_snow_height) {
+            snowMoved = snowSWE - threshold_snow_height;
+            }
+        }
 
         // Calculate the exchange rate considering area
-        // The exchange rate is the amount of snow moved from the source HRU
-        // The units are [mm-km2/d] - volume per time
         exchange_rates[q] = (snowMoved * weight * areaFrom) / Options.timestep; // [mm-km2/d]
 
-        // Debug info
-        //std::cout << "Connection " << q << ": fromHRU=" << fromHRU << " toHRU=" << toHRU 
-        //          << " slope=" << slope << " snowSWE=" << snowSWE 
-        //          << " snowTransport=" << snowTransport << " snowMoved=" << snowMoved 
-        //          << " areaFrom=" << areaFrom << " areaTo=" << areaTo 
-        //          << " exchange_rate=" << exchange_rates[q] << std::endl;
+        // Debug info - uncomment when needed
+        /*
+        std::cout << "Connection " << q << ": fromHRU=" << fromHRU << " toHRU=" << toHRU 
+        << " method=" << (_method == CONTINUOUS_REDIST ? "CONTINUOUS" : "THRESHOLD")
+        << " snowSWE=" << snowSWE << " snowMoved=" << snowMoved 
+        << " exchange_rate=" << exchange_rates[q] << std::endl;
+        */
     }
 }
-
-

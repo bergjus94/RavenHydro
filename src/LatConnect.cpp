@@ -65,3 +65,62 @@ double CLatConnect::GetWeight() const
 }
 
 
+///////////////////////////////////////////////////////////////////
+/// \brief Checks if weights for each HRU add up to 1.0 within tolerance
+/// \param connections [in] Array of lateral connections
+/// \param nConnections [in] Number of connections
+/// \param pModel [in] Pointer to model
+/// \param tolerance [in] Acceptable deviation from 1.0 (default 0.05)
+/// \return true if all HRU connection weights sum to approximately 1.0
+//
+bool CLatConnect::CheckConnectionWeights(const CLatConnect* const connections[], 
+                                         const int nConnections,
+                                         const CModel* pModel,
+                                         const double tolerance)
+{
+  if (connections == NULL || nConnections <= 0 || pModel == NULL) {
+    return false;
+  }
+
+  // Get the number of HRUs in the model
+  int nHRUs = pModel->GetNumHRUs();
+
+  // Create arrays to store the sum of weights for each HRU
+  double* sumWeights = new double[nHRUs];
+  bool* hasConnections = new bool[nHRUs];
+
+  // Initialize arrays
+  for (int k = 0; k < nHRUs; k++) {
+    sumWeights[k] = 0.0;
+    hasConnections[k] = false;
+  }
+
+  // Calculate the sum of weights for each source HRU
+  for (int i = 0; i < nConnections; i++) {
+    int sourceHRU = connections[i]->GetHRUID();
+    double weight = connections[i]->GetWeight();
+
+    sumWeights[sourceHRU-1] += weight;
+    hasConnections[sourceHRU-1] = true;
+  }
+
+  // Check if weights sum to approximately 1.0 for each HRU that has connections
+  bool allValid = true;
+  for (int k = 0; k < nHRUs; k++) {
+    if (hasConnections[k]) {
+      bool enabled = pModel->GetHydroUnit(k)->IsEnabled();
+
+      // Check if weights sum deviates significantly from 1.0
+      if ((fabs(sumWeights[k] - 1.0) > 0.0001) && enabled) {
+        allValid = false;
+      }
+    }
+  }
+
+  // Clean up
+  delete[] sumWeights;
+  delete[] hasConnections;
+
+  return allValid;
+}
+
