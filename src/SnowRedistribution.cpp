@@ -90,68 +90,89 @@ void CmvLatRedistribute::GetParticipatingParamList(string *aP, class_type *aPC, 
 /// \param *exchange_rates [out] Rate of loss from "from" compartment [mm-km2/day]
 //
 void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
-                                            const CHydroUnit *const *pHRUs,
-                                            const optStruct &Options,
-                                            const time_struct &tt,
-                                            double *exchange_rates) const
-{
+        const CHydroUnit *const *pHRUs,
+        const optStruct &Options,
+        const time_struct &tt,
+        double *exchange_rates) const
+    {
     const double PI = 3.141592653589793;
     const double TAN_80_DEGREES = tan(80.0 * PI / 180.0);
     const double RAD_TO_DEG = 180.0 / PI;
-    const double _k_param = 0.05; // Bernhardt & Schulz (2010) SnowSlide threshold method parameter
+    const double _k_param = 0.075; // Bernhardt & Schulz (2010) SnowSlide threshold method parameter
+
+    // Snow density conversion factor
+    const double SNOW_DENSITY = 250.0;     // kg/m³
+    const double WATER_DENSITY = 1000.0;   // kg/m³
+    const double SWE_TO_DEPTH_FACTOR = WATER_DENSITY / SNOW_DENSITY;  // = 4.0
 
     for (int q = 0; q < _pModel->GetNumLatConnections(); q++)
     {
-        CLatConnect *connection = _pModel->GetLatConnection(q);
-        int fromHRU = connection->GetHRUID();
-        int toHRU = connection->GetConnectedHRUID();
-        double weight = connection->GetWeight();
+    CLatConnect *connection = _pModel->GetLatConnection(q);
+    int fromHRU = connection->GetHRUID();
+    int toHRU = connection->GetConnectedHRUID();
+    double weight = connection->GetWeight();
 
-        // Get the areas of both HRUs
-        double areaFrom = pHRUs[fromHRU-1]->GetArea();
-        double areaTo = pHRUs[toHRU-1]->GetArea();
+    // Get the areas of both HRUs
+    double areaFrom = pHRUs[fromHRU-1]->GetArea();
+    double areaTo = pHRUs[toHRU-1]->GetArea();
 
-        // Get slope and SWE from source HRU
-        double slope_rad = pHRUs[fromHRU-1]->GetSlope();
-        double snowSWE = state_vars[fromHRU-1][_iRedistributeFrom];
+    // Get slope and SWE from source HRU
+    double slope_rad = pHRUs[fromHRU-1]->GetSlope();
+    double slope_deg = slope_rad * RAD_TO_DEG;
+    double snowSWE = state_vars[fromHRU-1][_iRedistributeFrom];
 
-        double snowMoved = 0.0;
+    double snowMoved = 0.0;
 
-        if (_method == CONTINUOUS_REDIST)
+    if (_method == CONTINUOUS_REDIST)
         {
-            // Original continuous method
-            double snowTransport = std::min(0.5, slope_rad / TAN_80_DEGREES) * std::min(1.0, snowSWE / _max_snow_height);
+            // Original continuous method - no conversion to snow depth
+            double snowTransport = std::min(0.5, slope_deg / TAN_80_DEGREES) * std::min(1.0, snowSWE / _max_snow_height);
             snowMoved = snowTransport * snowSWE;
         }
         else if (_method == THRESHOLD_REDIST)
         {
             // Bernhardt & Schulz (2010) SnowSlide threshold method
             const double SNOWSLIDE_LIMIT_ANGLE = 60.0; // Maximum angle in degrees
-            double slope_deg = slope_rad * RAD_TO_DEG;
+            
+            // Convert SWE to snow depth (both in mm)
+            double snowDepth = snowSWE * SWE_TO_DEPTH_FACTOR;
 
             // Calculate threshold snow height based on slope angle
             double threshold_snow_height = _max_snow_height * exp(-_k_param * slope_deg);
 
             // Ensure no accumulation above SNOWSLIDE_LIMIT_ANGLE
             if (slope_deg > SNOWSLIDE_LIMIT_ANGLE) {
-            threshold_snow_height = 0.0;
+                threshold_snow_height = 0.0;
             }
 
             // Calculate excess snow to be redistributed
-            if (snowSWE > threshold_snow_height) {
-            snowMoved = snowSWE - threshold_snow_height;
+            if (snowDepth > threshold_snow_height) {
+                double excessSnowDepth = snowDepth - threshold_snow_height;
+                // Convert back to SWE
+                snowMoved = excessSnowDepth / SWE_TO_DEPTH_FACTOR;
             }
+            //std::cout << " slope=" << slope_deg << "° "
+            //<< " maxSnowHeight=" << _max_snow_height << " mm"
+            //<< " threshold=" << threshold_snow_height << " mm"
+            //<< " (calc: " << _max_snow_height << " * exp(-" << _k_param << " * " << slope_deg << "))" 
+            //<< " snowSWE=" << snowSWE << " mm"
+            //<< " snowDepth=" << snowDepth << " mm"
+            //<< " comparison: " << (snowDepth > threshold_snow_height ? "snowDepth > threshold" : "snowDepth <= threshold")
+            //<< " excessDepth=" << (snowDepth > threshold_snow_height ? (snowDepth - threshold_snow_height) : 0) << " mm";
         }
 
         // Calculate the exchange rate considering area
         exchange_rates[q] = (snowMoved * weight * areaFrom) / Options.timestep; // [mm-km2/d]
 
         // Debug info - uncomment when needed
-        /*
-        std::cout << "Connection " << q << ": fromHRU=" << fromHRU << " toHRU=" << toHRU 
-        << " method=" << (_method == CONTINUOUS_REDIST ? "CONTINUOUS" : "THRESHOLD")
-        << " snowSWE=" << snowSWE << " snowMoved=" << snowMoved 
-        << " exchange_rate=" << exchange_rates[q] << std::endl;
-        */
+        
+        // Debug info with comprehensive output
+        //std::cout << "Connection " << q << ": fromHRU=" << fromHRU << " toHRU=" << toHRU 
+        //<< " method=" << (_method == CONTINUOUS_REDIST ? "CONTINUOUS" : "THRESHOLD");
+
+        //std::cout << " snowMoved=" << snowMoved << " mm"
+        //    << " exchange_rate=" << exchange_rates[q] << " mm-km²/d" << std::endl;
+        
     }
+
 }
