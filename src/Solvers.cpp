@@ -24,9 +24,9 @@ void MassEnergyBalance( CModel            *pModel,
   int nConstituents;                           //
   int iSW, iAtm, iAET, iGW, iRO;               //Surface water, atmospheric precip, used PET, runoff indices
 
-  int                iFrom          [MAX_CONNECTIONS]; //arrays used to pass values through GetRatesOfChange routines
-  int                iTo            [MAX_CONNECTIONS];
-  double             rates_of_change[MAX_CONNECTIONS];
+  int                iFrom          [MAX_LAT_CONNECTIONS]; //arrays used to pass values through GetRatesOfChange routines
+  int                iTo            [MAX_LAT_CONNECTIONS];
+  double             rates_of_change[MAX_LAT_CONNECTIONS];
 
   double             tstep;       //[d] timestep
   double             t;           //[d] model time
