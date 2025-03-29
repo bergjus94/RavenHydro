@@ -105,6 +105,10 @@ void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
     const double WATER_DENSITY = 1000.0;   // kg/m³
     const double SWE_TO_DEPTH_FACTOR = WATER_DENSITY / SNOW_DENSITY;  // = 4.0
 
+    // Define minimum slope for lakes (30 degrees)
+    const double LAKE_MIN_SLOPE_DEG = 30.0;
+    const double LAKE_MIN_SLOPE_RAD = LAKE_MIN_SLOPE_DEG * PI / 180.0;
+
     for (int q = 0; q < _pModel->GetNumLatConnections(); q++)
     {
     CLatConnect *connection = _pModel->GetLatConnection(q);
@@ -118,6 +122,16 @@ void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
 
     // Get slope and SWE from source HRU
     double slope_rad = pHRUs[fromHRU-1]->GetSlope();
+
+    // Check if source HRU is a lake, if so, increase slope
+    HRU_type hru_type = pHRUs[fromHRU-1]->GetHRUType();
+    bool is_lake = (hru_type == HRU_LAKE);
+
+    // Override slope for lakes
+    if (is_lake) {
+        slope_rad = LAKE_MIN_SLOPE_RAD;  // Use minimum slope for lakes
+    }
+
     double slope_deg = slope_rad * RAD_TO_DEG;
     double snowSWE = state_vars[fromHRU-1][_iRedistributeFrom];
 
