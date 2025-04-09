@@ -143,22 +143,34 @@ void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
             double snowTransport = std::min(0.5, slope_deg / TAN_80_DEGREES) * std::min(1.0, snowSWE / _max_snow_height);
             snowMoved = snowTransport * snowSWE;
         }
-        else if (_method == THRESHOLD_REDIST)
+    else if (_method == THRESHOLD_REDIST)
         {
             // Bernhardt & Schulz (2010) SnowSlide threshold method
             const double SNOWSLIDE_LIMIT_ANGLE = 60.0; // Maximum angle in degrees
             
             // Convert SWE to snow depth (both in mm)
             double snowDepth = snowSWE * SWE_TO_DEPTH_FACTOR;
-
-            // Calculate threshold snow height based on slope angle
-            double threshold_snow_height = _max_snow_height * exp(-_k_param * slope_deg);
-
+        
+            // Original implementation (keeping as comment for reference)
+            // double threshold_snow_height = _max_snow_height * exp(-_k_param * slope_deg);
+        
+            // FSM2 snow holding depth calculation
+            double slope_thres = slope_deg;
+            if (slope_thres < 10.0) {
+                slope_thres = 10.0; // limit to >10 degrees to avoid infinite values
+            }
+            
+            // Calculate threshold in meters (FSM2 formula works directly in meters)
+            double threshold_snow_height_m = 3178.4 * pow(slope_thres, -1.998);
+            
+            // Convert from meters to mm for consistency with other calculations
+            double threshold_snow_height = threshold_snow_height_m * 1000.0;
+        
             // Ensure no accumulation above SNOWSLIDE_LIMIT_ANGLE
             if (slope_deg > SNOWSLIDE_LIMIT_ANGLE) {
                 threshold_snow_height = 0.0;
             }
-
+        
             // Calculate excess snow to be redistributed
             if (snowDepth > threshold_snow_height) {
                 double excessSnowDepth = snowDepth - threshold_snow_height;
@@ -166,9 +178,7 @@ void CmvLatRedistribute::GetLateralExchange(const double *const *state_vars,
                 snowMoved = excessSnowDepth / SWE_TO_DEPTH_FACTOR;
             }
             //std::cout << " slope=" << slope_deg << "° "
-            //<< " maxSnowHeight=" << _max_snow_height << " mm"
             //<< " threshold=" << threshold_snow_height << " mm"
-            //<< " (calc: " << _max_snow_height << " * exp(-" << _k_param << " * " << slope_deg << "))" 
             //<< " snowSWE=" << snowSWE << " mm"
             //<< " snowDepth=" << snowDepth << " mm"
             //<< " comparison: " << (snowDepth > threshold_snow_height ? "snowDepth > threshold" : "snowDepth <= threshold")
