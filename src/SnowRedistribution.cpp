@@ -36,6 +36,11 @@ CmvLatRedistribute::CmvLatRedistribute(int sv_ind,
 //
 CmvLatRedistribute::~CmvLatRedistribute() {}
 
+int CmvLatRedistribute::GetNumLatConnections() const
+{
+    return _pModel->GetNumLatConnections();
+}
+
 //////////////////////////////////////////////////////////////////
 /// \brief Initialization (prior to solution)
 //

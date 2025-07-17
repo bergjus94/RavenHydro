@@ -84,7 +84,7 @@ int CLateralExchangeProcessABC::GetLateralFlowIndex() const
 int CLateralExchangeProcessABC::GetNumLatConnections() const
 {
   //return _nLatConnections;
-  return _pModel->GetNumLatConnections();
+  return _nLatConnections;
 }
 
 //////////////////////////////////////////////////////////////////

@@ -43,7 +43,7 @@ public:/*-------------------------------------------------------*/
 
   int GetLateralFlowIndex() const;
 
-  int GetNumLatConnections() const;
+  virtual int GetNumLatConnections() const;
 
   const int *GetFromHRUIndices() const;
   const int *GetToHRUIndices() const;
@@ -179,6 +179,7 @@ public:/*-------------------------------------------------------*/
 
   //inherited functions
   void Initialize();
+  int GetNumLatConnections() const override;
 
   static void GetParticipatingStateVarList(sv_type *aSV, int *aLev, int &nSV);
 
