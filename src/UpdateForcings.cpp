@@ -385,6 +385,20 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
         pGrid_pet-> ReadData(Options,tt.model_time);
         F.PET   = pGrid_pet->GetWeightedValue(k,tt.model_time,Options.timestep);
       }
+      else
+      {
+        // Fallback: interpolate PET from gauges
+        F.PET = 0.0;
+        F.PET_month_ave = 0.0;
+        F.temp_month_ave = 0.0;
+        for (g = 0; g < _nGauges; g++)
+        {
+          F.PET += Fg[g].PET;
+          F.PET_month_ave += Fg[g].PET_month_ave;
+          F.temp_month_ave += Fg[g].temp_month_ave;
+        }
+
+      }
       if(owpet_gridded) {
         pGrid_owpet   = GetForcingGrid(F_OW_PET);
         pGrid_owpet-> ReadData(Options,tt.model_time);
@@ -594,15 +608,15 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
       if (_pHydroUnits[k]->GetHRUType() == HRU_MASKED_GLACIER) { // Assuming HRU_TYPE_GLACIER is the type for masked glacier HRUs
         F.PET = 0.0;
         F.OW_PET = 0.0;
-      } else {
+    } else {
         if (!pet_gridded) { // Gauge Data
-          F.PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.evaporation, Options, tt, false);
+            F.PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.evaporation, Options, tt, false);
         }
         if (!owpet_gridded) {
-          F.OW_PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.ow_evaporation, Options, tt, true);
+            F.OW_PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.ow_evaporation, Options, tt, true);
         }
         CorrectPET(Options, F, _pHydroUnits[k], elev, ref_elev_temp, k);
-      }
+    }
 
       //-------------------------------------------------------------------
       // Irrigation
