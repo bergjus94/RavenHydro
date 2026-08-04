@@ -11,11 +11,6 @@ Release versions, tutorials, documentation, and more distributed at [the Raven w
 
 Intended for use with Visual Studio Community Edition 2022, but also provided with Windows/linux/unix/MacOS g++ makefile and CMake configuration file.
 
-Note unconventional two-space tabbing conventions.
-If you would like to work with the active development of Raven's core, please do so on a branch and coordinate commits to the trunk with the Raven development team.
-
-Please contact us while you're at it - we love to have people helping out.
-
 ## Modifications in this fork
 
 Raven is distributed under the Artistic License 2.0, which this fork retains
@@ -61,8 +56,7 @@ verified two independent ways:
   for the published runs byte for byte (md5 `93c11f7475b0848b83e22f4da7dfff95`)
 - rerunning catchment 2268 in the coupled / snow-redistribution /
   precipitation-correction configuration over 2000-2020 reproduces the stored
-  `2268_HBV_Hydrographs.csv` exactly (md5 `ac8c128c89b388bcbbac3c71302f2980`,
-  zero differing lines)
+  `2268_HBV_Hydrographs.csv` exactly
 
 Model setups, calibrated parameters and simulation output are published at
 https://doi.org/10.5281/zenodo.21774506; the analysis workflow is at
