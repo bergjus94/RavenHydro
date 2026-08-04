@@ -348,9 +348,13 @@ double CModel::EstimatePET(const force_struct &F,
   //-------------------------------------------------------------------------------------
   case(PET_FROMMONTHLY):
   {
-    double peRatio=1.0+HBV_PET_TEMP_CORR*(F.temp_ave_unc-F.temp_month_ave);
-    peRatio=max(0.0,min(2.0,peRatio));
-    PET=F.PET_month_ave*peRatio;
+    double temp_ave_unc = F.temp_ave_unc;
+    double temp_month_ave = F.temp_month_ave;
+    double PET_month_ave = F.PET_month_ave;
+    double peRatio = 1.0 + HBV_PET_TEMP_CORR * (temp_ave_unc - temp_month_ave);
+    peRatio = max(0.0, min(2.0, peRatio));
+    PET = PET_month_ave * peRatio;
+
     break;
   }
   //-------------------------------------------------------------------------------------

@@ -10,6 +10,7 @@
 #include "Model.h"
 #include "HydroUnits.h"
 #include "HydroProcessABC.h"
+
 class CModel;
 
 ///////////////////////////////////////////////////////////////////
@@ -42,7 +43,7 @@ public:/*-------------------------------------------------------*/
 
   int GetLateralFlowIndex() const;
 
-  int GetNumLatConnections() const;
+  virtual int GetNumLatConnections() const;
 
   const int *GetFromHRUIndices() const;
   const int *GetToHRUIndices() const;
@@ -69,6 +70,8 @@ public:/*-------------------------------------------------------*/
                                   const optStruct   &Options,
                                   const time_struct &tt,
                                         double      *exchange_rates) const=0;//purely virtual - required
+
+  static bool AddLateralConnections(const string &filename, CModel *pModel);
 
 };
 
@@ -149,4 +152,45 @@ public:/*-------------------------------------------------------*/
                           double* exchange_rates) const;//purely virtual
 
 };
-#endif
+
+///////////////////////////////////////////////////////////////////
+/// \brief Data abstraction for the redistribution of snow based on slope and snow SWE
+
+typedef enum {
+  CONTINUOUS_REDIST,
+  THRESHOLD_REDIST
+} redist_method;
+
+class CmvLatRedistribute: public CLateralExchangeProcessABC
+{
+private:/*------------------------------------------------------*/
+  int _iRedistributeFrom; //< global state variable index of source state var
+  int _iRedistributeTo;   //< global state variable index of target state var
+  double _max_snow_height; //< maximum snow height for redistribution
+  redist_method _method;      // method used for redistribution
+
+public:/*-------------------------------------------------------*/
+  //Constructors/destructors:
+  CmvLatRedistribute(int sv_ind,
+                     double max_snow_height,
+                     redist_method method,
+                     CModel *pModel);
+  ~CmvLatRedistribute();
+
+  //inherited functions
+  void Initialize();
+  int GetNumLatConnections() const override;
+
+  static void GetParticipatingStateVarList(sv_type *aSV, int *aLev, int &nSV);
+
+  void GetParticipatingParamList(string *aP, class_type *aPC, int &nP) const;
+
+  void GetLateralExchange(const double * const *state_vars, //array of all SVs for all HRUs, [k][i]
+                          const CHydroUnit * const *pHRUs,
+                          const optStruct   &Options,
+                          const time_struct &tt,
+                                double      *exchange_rates) const;//purely virtual
+
+};
+
+#endif // LATERALEXCHANGE_H

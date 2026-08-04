@@ -385,6 +385,20 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
         pGrid_pet-> ReadData(Options,tt.model_time);
         F.PET   = pGrid_pet->GetWeightedValue(k,tt.model_time,Options.timestep);
       }
+      else
+      {
+        // Fallback: interpolate PET from gauges
+        F.PET = 0.0;
+        F.PET_month_ave = 0.0;
+        F.temp_month_ave = 0.0;
+        for (g = 0; g < _nGauges; g++)
+        {
+          F.PET += Fg[g].PET;
+          F.PET_month_ave += Fg[g].PET_month_ave;
+          F.temp_month_ave += Fg[g].temp_month_ave;
+        }
+
+      }
       if(owpet_gridded) {
         pGrid_owpet   = GetForcingGrid(F_OW_PET);
         pGrid_owpet-> ReadData(Options,tt.model_time);
@@ -423,46 +437,50 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
       int p = _pHydroUnits[k]->GetSubBasinIndex();
       tc = _pSubBasins[p]->GetTemperatureCorrection();
 
-      //--Gauge Corrections------------------------------------------------
-      if (Options.in_bmi_mode && !rvt_file_provided)  // temperature was given by the BMI and no gauge corrections are to be applied
-      {
-        F.temp_daily_ave = F.temp_daily_max = F.temp_daily_min = F.temp_ave;  // TODO: check if this is acceptable
+      if (_pHydroUnits[k]->GetHRUType() != HRU_MASKED_GLACIER) {
+
+        //--Gauge Corrections------------------------------------------------
+        if (Options.in_bmi_mode && !rvt_file_provided)  // temperature was given by the BMI and no gauge corrections are to be applied
+        {
+          F.temp_daily_ave = F.temp_daily_max = F.temp_daily_min = F.temp_ave;  // TODO: check if this is acceptable
+        }
+        else if (!(temp_ave_gridded || (temp_daily_min_gridded && temp_daily_max_gridded) || temp_daily_ave_gridded)) //Gauge Data
+        {
+            double gauge_corr;
+            F.temp_ave = F.temp_daily_ave = F.temp_daily_max = F.temp_daily_min = 0.0; // leave out monthly for now
+            for (g = 0; g < _nGauges; g++)
+            {
+                gauge_corr = tc + _pGauges[g]->GetTemperatureCorr();
+                wt = _aGaugeWtTemp[k][g];
+
+                F.temp_ave       += wt * (gauge_corr + Fg[g].temp_ave);
+                F.temp_daily_ave += wt * (gauge_corr + Fg[g].temp_daily_ave);
+                F.temp_daily_max += wt * (gauge_corr + Fg[g].temp_daily_max);
+                F.temp_daily_min += wt * (gauge_corr + Fg[g].temp_daily_min);
+
+            }
+        }
+        else //Gridded Data
+        {
+            double grid_corr;
+            grid_corr = pGrid_pre->GetTemperatureCorr();
+            if ((tc+grid_corr)!=0.0){
+              F.temp_ave       += tc + grid_corr;
+              F.temp_daily_ave += tc + grid_corr;
+              F.temp_daily_max += tc + grid_corr;
+              F.temp_daily_min += tc + grid_corr;
+            }
+        }
+
+        F.temp_ave_unc = F.temp_daily_ave;
+        F.temp_min_unc = F.temp_daily_min;
+        F.temp_max_unc = F.temp_daily_max;
+
+        CorrectTemp(Options,F,elev,ref_elev_temp,tt);
+
+        ApplyForcingPerturbation(F_TEMP_AVE, F, k, Options, tt);
+      
       }
-      else if (!(temp_ave_gridded || (temp_daily_min_gridded && temp_daily_max_gridded) || temp_daily_ave_gridded)) //Gauge Data
-      {
-          double gauge_corr;
-          F.temp_ave = F.temp_daily_ave = F.temp_daily_max = F.temp_daily_min = 0.0; // leave out monthly for now
-          for (g = 0; g < _nGauges; g++)
-          {
-              gauge_corr = tc + _pGauges[g]->GetTemperatureCorr();
-              wt = _aGaugeWtTemp[k][g];
-
-              F.temp_ave       += wt * (gauge_corr + Fg[g].temp_ave);
-              F.temp_daily_ave += wt * (gauge_corr + Fg[g].temp_daily_ave);
-              F.temp_daily_max += wt * (gauge_corr + Fg[g].temp_daily_max);
-              F.temp_daily_min += wt * (gauge_corr + Fg[g].temp_daily_min);
-
-          }
-      }
-      else //Gridded Data
-      {
-          double grid_corr;
-          grid_corr = pGrid_pre->GetTemperatureCorr();
-          if ((tc+grid_corr)!=0.0){
-            F.temp_ave       += tc + grid_corr;
-            F.temp_daily_ave += tc + grid_corr;
-            F.temp_daily_max += tc + grid_corr;
-            F.temp_daily_min += tc + grid_corr;
-          }
-      }
-
-      F.temp_ave_unc = F.temp_daily_ave;
-      F.temp_min_unc = F.temp_daily_min;
-      F.temp_max_unc = F.temp_daily_max;
-
-      CorrectTemp(Options,F,elev,ref_elev_temp,tt);
-
-      ApplyForcingPerturbation(F_TEMP_AVE, F, k, Options, tt);
 
       //-------------------------------------------------------------------
       //  Copy Daily values from current day, earlier time steps
@@ -496,53 +514,55 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
       //  Precip Corrections
       //-------------------------------------------------------------------
       double rc,sc;
-      // int p=_pHydroUnits[k]->GetSubBasinIndex(); // defined for temp correction already
-      rc=_pSubBasins[p]->GetRainCorrection();
-      sc=_pSubBasins[p]->GetSnowCorrection();
+      
+      if (_pHydroUnits[k]->GetHRUType() != HRU_MASKED_GLACIER) {
+        // int p=_pHydroUnits[k]->GetSubBasinIndex(); // defined for temp correction already
+        rc=_pSubBasins[p]->GetRainCorrection();
+        sc=_pSubBasins[p]->GetSnowCorrection();
 
-      //--Gauge Corrections------------------------------------------------
-      if(!(pre_gridded || snow_gridded || rain_gridded)) //Gauge or BMI-injected Data
-      {
-        double gauge_corr;
-        F.precip=F.precip_5day=F.precip_daily_ave=0.0;
-        if ((!Options.in_bmi_mode) || rvt_file_provided) {
-          // Gauge-based precip and snowfall correction
-          for(g=0; g<_nGauges; g++)
-          {
-            gauge_corr= F.snow_frac*sc*_pGauges[g]->GetSnowfallCorr() + (1.0-F.snow_frac)*rc*_pGauges[g]->GetRainfallCorr();
-            wt=_aGaugeWtPrecip[k][g];
-            F.precip         += wt*gauge_corr*Fg[g].precip;
-            F.precip_daily_ave+=wt*gauge_corr*Fg[g].precip_daily_ave;
-            F.precip_5day    += wt*gauge_corr*Fg[g].precip_5day;
+        //--Gauge Corrections------------------------------------------------
+        if(!(pre_gridded || snow_gridded || rain_gridded)) //Gauge or BMI-injected Data
+        {
+          double gauge_corr;
+          F.precip=F.precip_5day=F.precip_daily_ave=0.0;
+          if ((!Options.in_bmi_mode) || rvt_file_provided) {
+            // Gauge-based precip and snowfall correction
+            for(g=0; g<_nGauges; g++)
+            {
+              gauge_corr= F.snow_frac*sc*_pGauges[g]->GetSnowfallCorr() + (1.0-F.snow_frac)*rc*_pGauges[g]->GetRainfallCorr();
+              wt=_aGaugeWtPrecip[k][g];
+              F.precip         += wt*gauge_corr*Fg[g].precip;
+              F.precip_daily_ave+=wt*gauge_corr*Fg[g].precip_daily_ave;
+              F.precip_5day    += wt*gauge_corr*Fg[g].precip_5day;
+            }
+          }
+      else {
+            // Gauge-less precip and snowfall correction
+            gauge_corr         = (F.snow_frac * sc) + ((1.0-F.snow_frac)*rc);
+            F.precip           = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip;
+            F.precip_daily_ave = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip;  // TODO: check if this is acceptable
+            F.precip_5day      = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip * 5;   // TODO: check if this is acceptable
           }
         }
-		else {
-          // Gauge-less precip and snowfall correction
-          gauge_corr         = (F.snow_frac * sc) + ((1.0-F.snow_frac)*rc);
-          F.precip           = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip;
-          F.precip_daily_ave = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip;  // TODO: check if this is acceptable
-          F.precip_5day      = gauge_corr * _pHydroUnits[k]->GetForcingFunctions()->precip * 5;   // TODO: check if this is acceptable
+        else //Gridded Data
+        {
+          double grid_corr;
+          double rain_corr=pGrid_pre->GetRainfallCorr();
+          double snow_corr=pGrid_pre->GetSnowfallCorr();
+          grid_corr= F.snow_frac*sc*snow_corr + (1.0-F.snow_frac)*rc*rain_corr;
+
+          F.precip          *=grid_corr;
+          F.precip_daily_ave*=grid_corr;
+          F.precip_5day      =NETCDF_BLANK_VALUE;
         }
+
+        //--Orographic corrections-------------------------------------------
+        CorrectPrecip(Options,F,elev,ref_elev_precip,k,tt);
+
+        ApplyForcingPerturbation(F_PRECIP  , F, k, Options, tt);
+        ApplyForcingPerturbation(F_RAINFALL, F, k, Options, tt);
+        ApplyForcingPerturbation(F_SNOWFALL, F, k, Options, tt);
       }
-      else //Gridded Data
-      {
-        double grid_corr;
-        double rain_corr=pGrid_pre->GetRainfallCorr();
-        double snow_corr=pGrid_pre->GetSnowfallCorr();
-        grid_corr= F.snow_frac*sc*snow_corr + (1.0-F.snow_frac)*rc*rain_corr;
-
-        F.precip          *=grid_corr;
-        F.precip_daily_ave*=grid_corr;
-        F.precip_5day      =NETCDF_BLANK_VALUE;
-      }
-
-      //--Orographic corrections-------------------------------------------
-      CorrectPrecip(Options,F,elev,ref_elev_precip,k,tt);
-
-      ApplyForcingPerturbation(F_PRECIP  , F, k, Options, tt);
-      ApplyForcingPerturbation(F_RAINFALL, F, k, Options, tt);
-      ApplyForcingPerturbation(F_SNOWFALL, F, k, Options, tt);
-
       //-------------------------------------------------------------------
       //  Wind Velocity
       //-------------------------------------------------------------------
@@ -585,15 +605,18 @@ void CModel::UpdateHRUForcingFunctions(const optStruct &Options,
       //  PET Calculations
       //-------------------------------------------------------------------
       // last but not least - needs all of the forcing params calculated above
-      if(!pet_gridded) //Gauge Data
-      {
-        F.PET   =EstimatePET(F,_pHydroUnits[k],ref_measurement_ht,ref_elev_temp,Options.evaporation,Options,tt,false);
-      }
-      if (!owpet_gridded)
-      {
-        F.OW_PET=EstimatePET(F,_pHydroUnits[k],ref_measurement_ht,ref_elev_temp,Options.ow_evaporation,Options,tt,true);
-      }
-      CorrectPET(Options,F,_pHydroUnits[k],elev,ref_elev_temp,k);
+      if (_pHydroUnits[k]->GetHRUType() == HRU_MASKED_GLACIER) { // Assuming HRU_TYPE_GLACIER is the type for masked glacier HRUs
+        F.PET = 0.0;
+        F.OW_PET = 0.0;
+    } else {
+        if (!pet_gridded) { // Gauge Data
+            F.PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.evaporation, Options, tt, false);
+        }
+        if (!owpet_gridded) {
+            F.OW_PET = EstimatePET(F, _pHydroUnits[k], ref_measurement_ht, ref_elev_temp, Options.ow_evaporation, Options, tt, true);
+        }
+        CorrectPET(Options, F, _pHydroUnits[k], elev, ref_elev_temp, k);
+    }
 
       //-------------------------------------------------------------------
       // Irrigation

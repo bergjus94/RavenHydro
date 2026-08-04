@@ -70,6 +70,7 @@ string GetProcessName(process_type p)
   case(LAT_ADVECTION):      {name="Lateral Advection";        break;}
   case(LAT_FLUSH):          {name="Lateral Flush";            break;}
   case(LAT_EQUIL):          {name="Lateral Equilibrate";      break;}
+  case(LAT_REDISTRIBUTE):   {name="Snow Redistribution";         break;}
   case(MASS_LOADING):       {name="Mass Loading";             break;}
   case(DECAY):              {name="Decay";                    break;}
   case(TRANSFORMATION):     {name="Transformation";           break;}
@@ -1350,6 +1351,7 @@ HRU_type StringToHRUType(const string s)
   else if (!s.compare("ROCK"    )){return HRU_ROCK;}
   else if (!s.compare("PAVEMENT")){return HRU_ROCK; }
   else if (!s.compare("WETLAND" )){return HRU_WETLAND;}
+  else if (!s.compare("MASKED_GLACIER" )){return HRU_MASKED_GLACIER;}
   else if (!s.compare("STANDARD")){return HRU_STANDARD;}
 
 #ifdef _STRICTCHECK_

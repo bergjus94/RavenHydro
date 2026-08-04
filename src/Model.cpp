@@ -24,6 +24,7 @@ CModel::CModel(const int        nsoillayers,
   _nHydroUnits=0;     _pHydroUnits=NULL;
   _nHRUGroups=0;      _pHRUGroups=NULL;
   _nSBGroups=0;       _pSBGroups=NULL;
+  _nLatConnect=0;     _pLatConnect=NULL;
   _nGauges=0;         _pGauges=NULL;
   _nForcingGrids=0;   _pForcingGrids=NULL;
   _nProcesses=0;      _pProcesses=NULL;
@@ -275,6 +276,14 @@ int CModel::GetNumHRUs        () const{return _nHydroUnits;}
 /// \return Integer number of HRU groups
 //
 int CModel::GetNumHRUGroups   () const{return _nHRUGroups;}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Returns number of Lateral Connection
+///
+/// \return Integer number of Lateral Connection
+//
+int CModel::GetNumLatConnections  () const{return _nLatConnect;}
+
 
 //////////////////////////////////////////////////////////////////
 /// \brief Returns number of gauges in model
@@ -651,6 +660,20 @@ bool CModel::IsInSubBasinGroup(const long SBID,const string SBGroupName) const
     if(_pSBGroups[pp]->GetSubBasin(p_loc)->GetID()==SBID) { return true; }
   }
   return false;
+}
+
+//////////////////////////////////////////////////////////////////
+/// \brief Returns specific Lateral connection
+///
+/// \param HRUID [in] HRU identifier
+/// \return pointer to Lateral Connection corresponding to passed index
+//
+CLatConnect* CModel::GetLatConnection(const int n) const
+{
+    if (n < 0 || n >= _nLatConnect) {
+        ExitGracefully("CModel::GetLatConnection: Index out of bounds", BAD_DATA);
+    }
+    return _pLatConnect[n];
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1263,6 +1286,18 @@ void CModel::AddSubBasinGroup(CSubbasinGroup *pSBGroup)
 }
 
 //////////////////////////////////////////////////////////////////
+/// \brief Adds Lateral Conncetions
+///
+/// \param *pLat [in] (valid) pointer to Lateral Connection to be added
+//
+void CModel::AddLateralConnection(CLatConnect *pLat)
+{
+  if (!DynArrayAppend((void**&)(_pLatConnect),(void*)(pLat),_nLatConnect)){
+    ExitGracefully("CModel::AddSubBasin: adding NULL HRU",BAD_DATA);}
+
+}
+
+//////////////////////////////////////////////////////////////////
 /// \brief Adds gauge to model
 ///
 /// \param *pGage [in] (valid) pointer to Gauge to be added to model
@@ -1478,6 +1513,7 @@ void CModel::AddProcess(CHydroProcessABC *pHydroProc)
   }
   if (!DynArrayAppend((void**&)(_pProcesses),(void*)(pHydroProc),_nProcesses)){
     ExitGracefully("CModel::AddProcess: adding NULL hydrological process",BAD_DATA);}
+
 }
 
 //////////////////////////////////////////////////////////////////
@@ -3016,11 +3052,14 @@ bool CModel::ApplyLateralProcess( const int          j,
 
   nLatConnections=_pProcesses[j]->GetNumLatConnections();
 
-  if(nLatConnections==0){return false;}
+  if (nLatConnections == 0) {
+    return false;
+  }
 
-  pLatProc=(CLateralExchangeProcessABC*)_pProcesses[j]; // Cast
-  if (!_aShouldApplyProcess[j][pLatProc->GetFromHRUIndices()[0]]){return false;} //JRC: is the From/0 appropriate?
-
+  pLatProc = (CLateralExchangeProcessABC*)_pProcesses[j]; // Cast
+  if (!_aShouldApplyProcess[j][pLatProc->GetFromHRUIndices()[0]]) {
+    return false;
+  }
 
   for (int q=0;q<nLatConnections;q++)
   {

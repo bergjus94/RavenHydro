@@ -384,22 +384,26 @@ void CmvSoilEvap::GetRatesOfChange (const double      *state_vars,
   //------------------------------------------------------------
   else if ((type==SOILEVAP_TOPMODEL) || (type==SOILEVAP_HBV)  || (type==SOILEVAP_HYPR))
   {
-    //From HBV Model (Bergstrom,1995)
-    double stor,tens_stor; //[mm]
+      //From HBV Model (Bergstrom,1995)
+      double stor,tens_stor; //[mm]
 
-    stor      = state_vars[iFrom[0]];
-    tens_stor = pHRU->GetSoilTensionStorageCapacity(0);
+      stor      = state_vars[iFrom[0]];
+      tens_stor = pHRU->GetSoilTensionStorageCapacity(0);
 
-    rates[0]  = PET * min(stor/tens_stor,1.0);  //evaporation rate [mm/d]
+      double ratio = (tens_stor > 0.0) ? stor / tens_stor : 0.0;
+      rates[0]  = PET * min(ratio, 1.0);  //evaporation rate [mm/d]
 
-    //correction for snow in non-forested areas (not in HYPR)
-    if (type==SOILEVAP_HBV)
-    {
-      int iSnow=pModel->GetStateVarIndex(SNOW);
-      double Fc=pHRU->GetSurfaceProps()->forest_coverage;
-      if ((iSnow!=DOESNT_EXIST) && (state_vars[iSnow]>REAL_SMALL)) {rates[0]=(Fc)*rates[0];}//+(1.0-Fc)*0.0; (implied)
-    }
-    PETused=rates[0];
+      //correction for snow in non-forested areas (not in HYPR)
+      if (type==SOILEVAP_HBV)
+      {
+        int iSnow=pModel->GetStateVarIndex(SNOW);
+        double Fc=pHRU->GetSurfaceProps()->forest_coverage;
+        if ((iSnow!=DOESNT_EXIST) && (state_vars[iSnow]>REAL_SMALL)) {
+            rates[0]=(Fc)*rates[0];
+        }
+      }
+
+      PETused=rates[0];
 
     //SOILEVAP_HYPR from
     //Ahmed et al., Toward Simple Modeling Practices in the Complex Canadian Prairie Watersheds,

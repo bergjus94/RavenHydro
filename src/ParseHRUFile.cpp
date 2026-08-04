@@ -8,6 +8,7 @@
 #include "HydroUnits.h"
 #include "ParseLib.h"
 #include "ControlStructures.h"
+#include "LatConnect.h"
 
 CReservoir *ReservoirParse(CParser *p,string name,const CModel *pModel,long long int &HRUID,const optStruct &Options);
 
@@ -29,6 +30,7 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
   long        SBID;             //subbasin ID
   CHydroUnit *pHRU;             //temp pointers
   CSubBasin  *pSB;
+  CLatConnect *pLat;
   bool        ended=false;
   bool        in_ifmode_statement=false;
   bool        is_conduit=false;
@@ -96,6 +98,7 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
     else if  (!strcmp(s[0],":MergeHRUGroups"           )){code=18; }
     else if  (!strcmp(s[0],":MergeSubBasinGroups"      )){code=19; }
     else if  (!strcmp(s[0],":GaugedSubBasinGroup"      )){code=20; }
+    else if  (!strcmp(s[0],":LateralConnections"       )){code=21; }
 
     switch(code)
     {
@@ -298,6 +301,7 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
           if (!pSoilProfile->GetTag().substr(0,4).compare("ROCK"    )){HRUtype=HRU_ROCK;   }
           if (!pSoilProfile->GetTag().substr(0,8).compare("PAVEMENT")){HRUtype=HRU_ROCK;   }
           if (!pSoilProfile->GetTag().substr(0,7).compare("WETLAND" )){HRUtype=HRU_WETLAND;}
+          if (!pSoilProfile->GetTag().substr(0,14).compare("MASKED_GLACIER")){HRUtype=HRU_MASKED_GLACIER;}
           pHRU=new CHydroUnit( pModel,
                                s_to_ll(s[0]),//ID
                                pModel->GetNumHRUs(),//k - global model index
@@ -1083,6 +1087,70 @@ bool ParseHRUPropsFile(CModel *&pModel, const optStruct &Options, bool terrain_r
         WriteAdvisory(advice, Options.noisy);
         break;
     }
+    case(21):  //----------------------------------------------
+    {/*
+        ":LateralConnections" 
+        {HRU1} {HRU2} {value}
+        :EndLateralConnections
+      */
+      if (Options.noisy) { cout << "   LateralConnections..." << endl; }
+
+      while (((Len==0) || (strcmp(s[0],":EndLateralConnections"))) && (!end_of_file)){
+
+        end_of_file = pp->Tokenize(s, Len);
+        if (IsComment(s[0], Len)) {} // comment line
+        else if (!strcmp(s[0], ":EndLateralConnections")) {} // done
+        
+        else
+        {
+          if (Len < 3) { pp->ImproperFormat(s); }
+
+          string error;
+
+          if (StringIsLong(s[0]))
+          {
+            pLat=NULL;
+            pLat = new CLatConnect(s_to_ll(s[0]),
+                                   s_to_ll(s[1]),
+                                   s_to_d(s[2])
+
+            );
+            // Add lateral connections to pModel
+            pModel->AddLateralConnection(pLat);
+          }
+          else          {
+            ExitGracefully("ParseLateralConnections: Bad HRU index in :LateralConnections command",BAD_DATA);
+          }
+
+        }
+
+      }
+
+      // After all connections are added, check if weights sum to 1.0
+      int nConnections = pModel->GetNumLatConnections();
+      if (nConnections > 0) {
+        // Create an array of pointers to lateral connections
+        const CLatConnect** connections = new const CLatConnect*[nConnections];
+  
+        // Fill the array with lateral connections from the model
+        for (int i = 0; i < nConnections; i++) {
+          connections[i] = pModel->GetLatConnection(i);
+        }
+  
+        // Check if weights sum to 1.0
+        if (!CLatConnect::CheckConnectionWeights(connections, nConnections, pModel)) {
+          WriteWarning("Some HRUs have lateral connection weights that do not sum to 1.0. This may lead to mass balance errors.", Options.noisy);
+        }
+        else {
+          cout << "   Lateral connection weights verified - all HRUs have properly normalized outflow weights." << endl;
+        }
+  
+      // Clean up the temporary array
+      delete[] connections;
+    }
+    break;
+  }
+
     default://------------------------------------------------
     {
       char firstChar = *(s[0]);

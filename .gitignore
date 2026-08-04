@@ -31,6 +31,10 @@
 *.out
 *.app
 
+# Build directory
+build/*
+*/build/
+
 # CMake artifacts
 cmake
 CMakeFiles

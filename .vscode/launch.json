@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "C++ Windows Debug",
+        "type": "cppvsdbg",
+        "request": "launch",
+        "program": "C:/Users/Justine Berg/OneDrive - Universitaet Bern/RavenHydro/build/Debug/Raven.exe",
+        "args": ["2268_HBV", "-o", "output\\"],
+        "stopAtEntry": false,
+        "cwd": "C:/Users/Justine Berg/OneDrive - Universitaet Bern/RavenHydro/build/Debug",
+        "environment": [],
+        "externalConsole": false,
+        "logging": {
+          "moduleLoad": false,
+          "trace": false,
+          "engineLogging": false,
+          "programOutput": true,
+          "exceptions": true
+        }
+      }
+    ]
+}

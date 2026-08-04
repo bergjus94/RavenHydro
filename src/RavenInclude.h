@@ -593,6 +593,7 @@ enum HRU_type
   HRU_GLACIER,              ///< Glacier HRU
   HRU_WETLAND,              ///< Wetland HRU
   HRU_ROCK,                 ///< Open Rock or Pavement (impermeable) HRUs
+  HRU_MASKED_GLACIER,       ///< Masked glacier HRU
   HRU_INVALID_TYPE          ///< returned if type is invalid
 };
 
@@ -960,7 +961,7 @@ enum process_type
   FLUSH, SPLIT, OVERFLOW_PROC,CONVOLVE,EXCHANGE_FLOW,
 
   //in LateralExchangeABC.h
-  LAT_FLUSH, LAT_EQUIL,
+  LAT_FLUSH, LAT_EQUIL, LAT_REDISTRIBUTE,
 
   //in Albedo.h
   SNOW_ALBEDO_EVOLVE,
